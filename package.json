@@ -1,0 +1,16 @@
+{
+  "name": "jaxx-suite",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "npm run build:landing && npm run build:recore && npm run build:bridge && npm run build:proctor && npm run combine",
+    "build:landing": "cd landing && npm install && npm run build",
+    "build:recore": "cd ReCORE && npm install && npm run build",
+    "build:bridge": "cd BRIDGE && npm install && npm run build",
+    "build:proctor": "cd PROCTOR && npm install && npm run build",
+    "combine": "node scripts/combine.js",
+    "deploy": "npm run build && npx firebase-tools deploy",
+    "deploy:only": "npx firebase-tools deploy"
+  }
+}

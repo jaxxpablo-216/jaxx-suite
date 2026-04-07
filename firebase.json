@@ -1,0 +1,28 @@
+{
+  "hosting": {
+    "public": "dist",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/ReCORE/**",
+        "destination": "/ReCORE/index.html"
+      },
+      {
+        "source": "/bridge/**",
+        "destination": "/bridge/index.html"
+      },
+      {
+        "source": "/proctor/**",
+        "destination": "/proctor/index.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

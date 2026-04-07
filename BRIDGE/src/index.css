@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Calibri", "Candara", "Segoe UI", "Optima", "Arial", sans-serif;
+  --font-mono: "Calibri", "Candara", "Segoe UI", "Optima", "Arial", sans-serif;
+  --font-serif: "Calibri", "Candara", "Segoe UI", "Optima", "Arial", sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-[#E4E3E0] text-[#141414] antialiased;
+  }
+}
