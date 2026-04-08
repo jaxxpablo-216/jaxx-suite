@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import type { ProviderId } from './providers';
 import { SYSTEM_INSTRUCTION } from './geminiService';
 
@@ -19,7 +18,7 @@ export function isConnected(provider: ProviderId): boolean {
   return loadKey(provider).length > 0;
 }
 
-/** True when a built-in (env-level) key is available for this provider. */
+/** True when a built-in (env-level) shared key exists for this provider. */
 export function hasSharedKey(provider: ProviderId): boolean {
   if (provider === 'gemini') {
     return Boolean(process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_2);
@@ -27,50 +26,77 @@ export function hasSharedKey(provider: ProviderId): boolean {
   return false;
 }
 
-// ── Quota / error helpers ────────────────────────────────────────────────────
+/**
+ * True when the provider can generate without the user supplying their own key.
+ * Gemini: shared env key covers it.
+ * Claude / OpenAI: always need a personal key.
+ */
+export function canGenerateWithoutKey(provider: ProviderId): boolean {
+  return hasSharedKey(provider);
+}
 
-function isQuota(err: unknown) {
-  const s = String(err);
+// ── Error helpers ────────────────────────────────────────────────────────────
+
+function isQuota(s: string) {
   return s.includes('429') || s.includes('RESOURCE_EXHAUSTED') || s.includes('quota');
 }
 
 function friendlyError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  if (isQuota(err)) return 'Quota exceeded. Wait a moment and try again, or switch to a different model or provider.';
-  if (raw.includes('401') || raw.includes('API_KEY_INVALID') || raw.includes('invalid x-api-key'))
-    return 'Invalid API key. Please reconnect this provider.';
+  if (isQuota(raw))
+    return 'Quota exceeded — wait a moment then retry, or switch to a different model.';
+  if (raw.includes('401') || raw.includes('403') || raw.includes('API_KEY_INVALID') ||
+      raw.includes('invalid x-api-key') || raw.includes('Unauthorized') ||
+      raw.includes('Permission denied') || raw.includes('authentication'))
+    return 'Invalid or unauthorized API key — please reconnect this provider.';
   if (raw.includes('404') || raw.includes('NOT_FOUND') || raw.includes('not found'))
-    return `Model not available: ${raw.split('"message"')[1]?.slice(0, 120) ?? raw.slice(0, 120)}`;
-  return `Generation failed: ${raw.slice(0, 300)}`;
+    return 'Model not found — it may not be available on your key tier. Try a different model.';
+  // Pass-through for "No X API key" so the UI can act on it
+  if (/^No \w/.test(raw)) return raw;
+  return `Generation failed: ${raw.slice(0, 200)}`;
 }
 
-// ── Gemini ───────────────────────────────────────────────────────────────────
+// ── Gemini — direct REST v1 (bypasses SDK's v1beta default) ─────────────────
+//
+// The @google/genai SDK routes to v1beta by default, which rejects model IDs
+// that are only available in the stable v1 endpoint. We call v1 directly so
+// we own the exact URL and avoid any SDK-level routing surprises.
+
+const GEMINI_V1 = 'https://generativelanguage.googleapis.com/v1/models';
+
+async function callGeminiKey(model: string, prompt: string, apiKey: string): Promise<string> {
+  const resp = await fetch(`${GEMINI_V1}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: { temperature: 0.4 },
+    }),
+  });
+
+  if (!resp.ok) throw new Error(await resp.text());
+  const data = await resp.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+}
 
 async function callGemini(model: string, prompt: string): Promise<string> {
-  const envKey1 = process.env.GEMINI_API_KEY ?? '';
-  const envKey2 = process.env.GEMINI_API_KEY_2 ?? '';
   const storedKey = loadKey('gemini');
-
-  // Priority: stored key (user-provided) → env key 1 → env key 2
   const keys = storedKey
     ? [storedKey]
-    : [envKey1, envKey2].filter(Boolean);
+    : [process.env.GEMINI_API_KEY ?? '', process.env.GEMINI_API_KEY_2 ?? ''].filter(Boolean);
 
-  if (keys.length === 0) throw new Error('No Gemini API key found. Please connect Gemini.');
+  if (keys.length === 0)
+    throw new Error('No Gemini API key found — please connect Gemini in provider settings.');
 
   let lastErr: unknown;
   for (let i = 0; i < keys.length; i++) {
     try {
-      const ai = new GoogleGenAI({ apiKey: keys[i] });
-      const resp = await ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: { systemInstruction: SYSTEM_INSTRUCTION, temperature: 0.4 },
-      });
-      return resp.text ?? '';
+      return await callGeminiKey(model, prompt, keys[i]);
     } catch (err) {
       lastErr = err;
-      if (isQuota(err) && i < keys.length - 1) {
+      const raw = String(err);
+      if (isQuota(raw) && i < keys.length - 1) {
         console.warn(`[PROCTOR] Gemini key ${i + 1} quota hit, trying key ${i + 2}…`);
         continue;
       }
@@ -84,7 +110,8 @@ async function callGemini(model: string, prompt: string): Promise<string> {
 
 async function callClaude(model: string, prompt: string): Promise<string> {
   const key = loadKey('claude');
-  if (!key) throw new Error('No Claude API key. Please connect Anthropic Claude.');
+  if (!key)
+    throw new Error('No Claude API key — connect Anthropic Claude in provider settings.');
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -101,19 +128,39 @@ async function callClaude(model: string, prompt: string): Promise<string> {
     }),
   });
 
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(body);
-  }
+  if (!resp.ok) throw new Error(await resp.text());
   const data = await resp.json();
   return data.content?.[0]?.text ?? '';
 }
 
 // ── OpenAI ───────────────────────────────────────────────────────────────────
+//
+// Reasoning models (o3-mini, o3, o1, o1-mini) have different parameter rules:
+//   - Use max_completion_tokens instead of max_tokens
+//   - Do not accept temperature
+//   - Do not accept a system role message (prepend to user message instead)
+
+const REASONING_MODELS = new Set(['o3-mini', 'o3', 'o1', 'o1-mini']);
 
 async function callOpenAI(model: string, prompt: string): Promise<string> {
   const key = loadKey('openai');
-  if (!key) throw new Error('No OpenAI API key. Please connect OpenAI.');
+  if (!key)
+    throw new Error('No OpenAI API key — connect OpenAI in provider settings.');
+
+  const isReasoning = REASONING_MODELS.has(model);
+
+  const body: Record<string, unknown> = {
+    model,
+    messages: isReasoning
+      ? [{ role: 'user', content: `${SYSTEM_INSTRUCTION}\n\n${prompt}` }]
+      : [
+          { role: 'system', content: SYSTEM_INSTRUCTION },
+          { role: 'user', content: prompt },
+        ],
+    ...(isReasoning
+      ? { max_completion_tokens: 8192 }
+      : { max_tokens: 8192, temperature: 0.4 }),
+  };
 
   const resp = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
@@ -121,21 +168,10 @@ async function callOpenAI(model: string, prompt: string): Promise<string> {
       Authorization: `Bearer ${key}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: SYSTEM_INSTRUCTION },
-        { role: 'user', content: prompt },
-      ],
-      max_tokens: 8192,
-      temperature: 0.4,
-    }),
+    body: JSON.stringify(body),
   });
 
-  if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(body);
-  }
+  if (!resp.ok) throw new Error(await resp.text());
   const data = await resp.json();
   return data.choices?.[0]?.message?.content ?? '';
 }

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateOutline, saveKey, loadKey, isConnected, hasSharedKey } from './services/aiService';
+import { generateOutline, saveKey, loadKey, isConnected, hasSharedKey, canGenerateWithoutKey } from './services/aiService';
 import {
   PROVIDERS, DEFAULT_PROVIDER, DEFAULT_MODEL_BY_PROVIDER,
   type ProviderId, type ProviderDef, type ModelDef,
@@ -450,7 +450,8 @@ export default function App() {
 
   const activeProvider   = PROVIDERS.find(p => p.id === selectedProvider)!;
   const activeModel      = activeProvider.models.find(m => m.id === selectedModel);
-  const canGenerate      = primaryContent.trim().length > 0 && selectedAudiences.length > 0;
+  const needsConnection  = !connectedMap[selectedProvider] && !canGenerateWithoutKey(selectedProvider);
+  const canGenerate      = primaryContent.trim().length > 0 && selectedAudiences.length > 0 && !needsConnection;
   const showSharedBanner = !connectedMap[selectedProvider] && hasSharedKey(selectedProvider) && !sharedKeyDismissed;
 
   return (
@@ -686,8 +687,30 @@ export default function App() {
             </div>
           </section>
 
+          {/* Connection required (Claude / OpenAI with no key) */}
+          {needsConnection && (
+            <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-800 mb-0.5">
+                  {activeProvider.label} requires your API key
+                </p>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  {activeProvider.label} doesn't offer a shared key — you'll need your own.{' '}
+                  {activeProvider.keyHelpText}.
+                </p>
+              </div>
+              <button
+                onClick={() => setConnectTarget(selectedProvider)}
+                className="shrink-0 text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1.5 rounded-lg transition-colors"
+              >
+                Connect
+              </button>
+            </div>
+          )}
+
           {/* Error */}
-          {error && (
+          {error && !needsConnection && (
             <div className="flex items-start gap-2 text-red-700 font-mono text-xs bg-red-50 border border-red-200 rounded-lg p-3">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>{error}</span>
