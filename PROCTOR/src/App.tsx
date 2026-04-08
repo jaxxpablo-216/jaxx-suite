@@ -213,6 +213,18 @@ function ModelCard({
 
 // ── Settings Panel (provider + model) ────────────────────────────────────────
 
+// Google "G" icon — used in sign-in button
+function GoogleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="w-4 h-4 shrink-0" aria-hidden>
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+    </svg>
+  );
+}
+
 function SettingsPanel({
   selectedProvider,
   selectedModel,
@@ -220,6 +232,10 @@ function SettingsPanel({
   onModelChange,
   connectedMap,
   onConnectRequest,
+  googleToken,
+  googleClientId,
+  onGoogleSignIn,
+  onGoogleSignOut,
 }: {
   selectedProvider: ProviderId;
   selectedModel: string;
@@ -227,9 +243,14 @@ function SettingsPanel({
   onModelChange: (m: string) => void;
   connectedMap: Record<ProviderId, boolean>;
   onConnectRequest: (p: ProviderId) => void;
+  googleToken: string | null;
+  googleClientId: string;
+  onGoogleSignIn: () => void;
+  onGoogleSignOut: () => void;
 }) {
-  const provider = PROVIDERS.find(p => p.id === selectedProvider)!;
+  const provider  = PROVIDERS.find(p => p.id === selectedProvider)!;
   const connected = connectedMap[selectedProvider];
+  const isGemini  = selectedProvider === 'gemini';
 
   return (
     <div className="max-w-7xl mx-auto pt-4 pb-3">
@@ -249,37 +270,96 @@ function SettingsPanel({
           >
             <span>{p.logo}</span>
             {p.label}
-            {connectedMap[p.id] && (
+            {(connectedMap[p.id] || (p.id === 'gemini' && googleToken)) && (
               <CheckCircle2 className="w-3 h-3 text-emerald-400" />
             )}
           </button>
         ))}
       </div>
 
-      {/* Connection status */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className={cn('w-2 h-2 rounded-full', connected ? 'bg-emerald-400' : 'bg-slate-600')} />
-          <span className="text-xs text-slate-400">
-            {connected ? `${provider.label} connected` : `${provider.label} not connected`}
-          </span>
-          {selectedProvider === 'gemini' && !connected && (
-            <span className="text-[10px] text-slate-500">(using built-in key)</span>
+      {/* ── Gemini auth section ── */}
+      {isGemini && !connected && (
+        <div className="mb-3 rounded-xl border border-slate-700 bg-slate-800/60 divide-y divide-slate-700/60">
+
+          {/* Signed in with Google */}
+          {googleToken ? (
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-emerald-300">Signed in with Google</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Session only — no data saved or stored</p>
+              </div>
+              <button
+                onClick={onGoogleSignOut}
+                className="text-[10px] font-medium text-slate-400 hover:text-white border border-slate-600 hover:border-slate-400 px-2 py-1 rounded-md transition-colors shrink-0"
+              >
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Shared key notice */}
+              <div className="flex items-center gap-2 px-3 py-2">
+                <div className="w-2 h-2 rounded-full bg-blue-400 shrink-0" />
+                <span className="text-[11px] text-slate-400 flex-1">Using PROCTOR's shared key</span>
+              </div>
+
+              {/* Sign in with Google option */}
+              {googleClientId && (
+                <div className="px-3 py-2.5">
+                  <p className="text-[10px] text-slate-500 mb-2">
+                    Or use your own Google account — session only, no data saved:
+                  </p>
+                  <button
+                    onClick={onGoogleSignIn}
+                    className="flex items-center gap-2 w-full px-3 py-2 bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-white/20"
+                  >
+                    <GoogleIcon />
+                    Sign in with Google
+                  </button>
+                </div>
+              )}
+            </>
           )}
+
+          {/* API key option — always available */}
+          <div className="flex items-center justify-between px-3 py-2">
+            <span className="text-[10px] text-slate-500">
+              {googleToken ? 'Switch to API key instead' : 'Or use your own API key:'}
+            </span>
+            <button
+              onClick={() => onConnectRequest('gemini')}
+              className="flex items-center gap-1 text-[10px] font-medium text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              Connect API key <ExternalLink className="w-2.5 h-2.5" />
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => onConnectRequest(selectedProvider)}
-          className={cn(
-            'flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg border transition-all',
-            connected
-              ? 'text-slate-400 border-slate-700 hover:border-slate-500 hover:text-white'
-              : 'text-blue-400 border-blue-500/40 hover:bg-blue-500/10'
-          )}
-        >
-          {connected ? 'Manage key' : 'Connect'}
-          <ExternalLink className="w-3 h-3" />
-        </button>
-      </div>
+      )}
+
+      {/* ── Non-Gemini / API-key-connected status ── */}
+      {(!isGemini || connected) && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className={cn('w-2 h-2 rounded-full', connected ? 'bg-emerald-400' : 'bg-slate-600')} />
+            <span className="text-xs text-slate-400">
+              {connected ? `${provider.label} connected` : `${provider.label} not connected`}
+            </span>
+          </div>
+          <button
+            onClick={() => onConnectRequest(selectedProvider)}
+            className={cn(
+              'flex items-center gap-1.5 text-xs font-medium px-3 py-1 rounded-lg border transition-all',
+              connected
+                ? 'text-slate-400 border-slate-700 hover:border-slate-500 hover:text-white'
+                : 'text-blue-400 border-blue-500/40 hover:bg-blue-500/10'
+            )}
+          >
+            {connected ? 'Manage key' : 'Connect'}
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Model cards */}
       <div className="space-y-1.5 max-h-72 overflow-y-auto pr-1">
@@ -318,6 +398,29 @@ export default function App() {
   const [error, setError]                       = useState<string | null>(null);
   const [copied, setCopied]                     = useState(false);
   const [sharedKeyDismissed, setSharedKeyDismissed] = useState(false);
+
+  // Google Sign-In — token lives in React state only, never persisted
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
+
+  const signInWithGoogle = () => {
+    if (!GOOGLE_CLIENT_ID || !window.google) return;
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: 'https://www.googleapis.com/auth/generative-language',
+      callback: (res: GisTokenResponse) => {
+        if (res.access_token) setGoogleToken(res.access_token);
+      },
+    });
+    client.requestAccessToken();
+  };
+
+  const signOutGoogle = () => {
+    if (googleToken && window.google) {
+      window.google.accounts.oauth2.revoke(googleToken);
+    }
+    setGoogleToken(null);
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef    = useRef<HTMLDivElement>(null);
@@ -420,6 +523,7 @@ export default function App() {
         presentationType: PRESENTATION_TYPES.find(t => t.id === presentationType)?.label || presentationType,
         provider: selectedProvider,
         model: selectedModel,
+        googleToken: googleToken ?? undefined,
       });
       setOutline(result || 'No output returned.');
       setTimeout(() => outputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -450,7 +554,7 @@ export default function App() {
 
   const activeProvider   = PROVIDERS.find(p => p.id === selectedProvider)!;
   const activeModel      = activeProvider.models.find(m => m.id === selectedModel);
-  const needsConnection  = !connectedMap[selectedProvider] && !canGenerateWithoutKey(selectedProvider);
+  const needsConnection  = !connectedMap[selectedProvider] && !canGenerateWithoutKey(selectedProvider) && !(selectedProvider === 'gemini' && googleToken);
   const canGenerate      = primaryContent.trim().length > 0 && selectedAudiences.length > 0 && !needsConnection;
   const showSharedBanner = !connectedMap[selectedProvider] && hasSharedKey(selectedProvider) && !sharedKeyDismissed;
 
@@ -518,6 +622,10 @@ export default function App() {
                 onModelChange={setSelectedModel}
                 connectedMap={connectedMap}
                 onConnectRequest={p => setConnectTarget(p)}
+                googleToken={googleToken}
+                googleClientId={GOOGLE_CLIENT_ID}
+                onGoogleSignIn={signInWithGoogle}
+                onGoogleSignOut={signOutGoogle}
               />
             </motion.div>
           )}

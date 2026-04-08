@@ -64,23 +64,51 @@ function friendlyError(err: unknown): string {
 
 const GEMINI_V1 = 'https://generativelanguage.googleapis.com/v1/models';
 
-async function callGeminiKey(model: string, prompt: string, apiKey: string): Promise<string> {
-  const resp = await fetch(`${GEMINI_V1}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.4 },
-    }),
-  });
+const GEMINI_BODY = (prompt: string) => JSON.stringify({
+  system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+  contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  generationConfig: { temperature: 0.4 },
+});
 
+async function parseGeminiResponse(resp: Response): Promise<string> {
   if (!resp.ok) throw new Error(await resp.text());
   const data = await resp.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
-async function callGemini(model: string, prompt: string): Promise<string> {
+/** Call Gemini with a developer API key (?key= query param). */
+async function callGeminiKey(model: string, prompt: string, apiKey: string): Promise<string> {
+  return parseGeminiResponse(
+    await fetch(`${GEMINI_V1}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: GEMINI_BODY(prompt),
+    })
+  );
+}
+
+/**
+ * Call Gemini with a Google OAuth2 Bearer token.
+ * The token comes from the user's in-session Google sign-in — nothing is stored
+ * beyond React state, and it is cleared when the tab is closed.
+ */
+async function callGeminiBearer(model: string, prompt: string, token: string): Promise<string> {
+  return parseGeminiResponse(
+    await fetch(`${GEMINI_V1}/${model}:generateContent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: GEMINI_BODY(prompt),
+    })
+  );
+}
+
+async function callGemini(model: string, prompt: string, googleToken?: string): Promise<string> {
+  // Google sign-in session token takes priority over keys (user's own access)
+  if (googleToken) return callGeminiBearer(model, prompt, googleToken);
+
   const storedKey = loadKey('gemini');
   const keys = storedKey
     ? [storedKey]
@@ -185,6 +213,8 @@ export async function generateOutline(inputs: {
   presentationType: string;
   provider: ProviderId;
   model: string;
+  /** Google OAuth2 Bearer token from sign-in-with-Google flow (session only). */
+  googleToken?: string;
 }): Promise<string> {
   const prompt = `
 Please generate a full presentation blueprint based on the following inputs.
@@ -206,7 +236,7 @@ Generate the complete PROCTOR Presentation Blueprint now.
 
   try {
     switch (inputs.provider) {
-      case 'gemini': return await callGemini(inputs.model, prompt);
+      case 'gemini': return await callGemini(inputs.model, prompt, inputs.googleToken);
       case 'claude': return await callClaude(inputs.model, prompt);
       case 'openai': return await callOpenAI(inputs.model, prompt);
       default: throw new Error(`Unknown provider: ${inputs.provider}`);
