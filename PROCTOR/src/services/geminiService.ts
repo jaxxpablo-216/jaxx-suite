@@ -1,5 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
-
+// System instruction shared across all providers
 export const SYSTEM_INSTRUCTION = `
 You are PROCTOR (Presentation Report & Outline Construction Tool for Organizational Resources).
 
@@ -106,47 +105,3 @@ Provide a concrete checklist to ensure the presenter is ready:
 - Tailor all content specifically to the provided input and audience — do not produce a template.
 - Use professional corporate language appropriate for C-suite and board-level consumption.
 `;
-
-export async function generatePresentationOutline(inputs: {
-  primaryContent: string;
-  executiveContext: string;
-  audiences: string[];
-  presentationType: string;
-  apiKey?: string;
-}) {
-  const apiKey = inputs.apiKey || process.env.GEMINI_API_KEY;
-  const ai = new GoogleGenAI({ apiKey });
-
-  const audienceList = inputs.audiences.length > 0
-    ? inputs.audiences.join(', ')
-    : 'General Leadership';
-
-  const prompt = `
-Please generate a full presentation blueprint based on the following inputs.
-
-**Primary Content (Raw Materials):**
-${inputs.primaryContent}
-
-**Executive Context:**
-${inputs.executiveContext || 'None provided.'}
-
-**Target Audience:**
-${audienceList}
-
-**Presentation Type:**
-${inputs.presentationType}
-
-Generate the complete PROCTOR Presentation Blueprint now.
-  `;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.0-flash',
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      temperature: 0.4,
-    },
-  });
-
-  return response.text;
-}
