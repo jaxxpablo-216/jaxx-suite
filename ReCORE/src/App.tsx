@@ -192,6 +192,12 @@ export default function App() {
     if (!skipWelcome) {
       setIsWelcomeOpen(true);
     }
+    // Pre-populate API key from JAXX Suite landing page setup.
+    const jaxxKey = localStorage.getItem('jaxx_key_gemini') || localStorage.getItem('proctor_key_gemini');
+    if (jaxxKey) {
+      setCustomApiKey(jaxxKey);
+      setUseUserKey(true);
+    }
   }, []);
 
   const handleLogout = () => {

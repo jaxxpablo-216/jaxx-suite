@@ -42,7 +42,12 @@ OUTPUT STYLE REQUIREMENTS:
 - Avoid generic explanations. Focus on practical rollout planning and leadership enablement.`;
 
 export async function generateRolloutPlan(notes: string) {
-  const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+  // Prefer key saved on the JAXX landing page, then env var (shared key).
+  const apiKey =
+    localStorage.getItem('jaxx_key_gemini') ||
+    localStorage.getItem('proctor_key_gemini') ||
+    process.env.GEMINI_API_KEY;
+  const ai = new GoogleGenAI({ apiKey });
   
   const response = await ai.models.generateContent({
     model: "gemini-3.1-pro-preview",

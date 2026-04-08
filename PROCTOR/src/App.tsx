@@ -385,8 +385,11 @@ export default function App() {
   const [presentationType, setPresentationType] = useState(PRESENTATION_TYPES[0].id);
   const [uploadedFiles, setUploadedFiles]       = useState<Array<{ name: string; size: number }>>([]);
 
-  const [selectedProvider, setSelectedProvider] = useState<ProviderId>(DEFAULT_PROVIDER);
-  const [selectedModel, setSelectedModel]       = useState(DEFAULT_MODEL_BY_PROVIDER[DEFAULT_PROVIDER]);
+  // Read global JAXX Suite selection saved from the landing page, fall back to defaults.
+  const _jaxxProvider = (localStorage.getItem('jaxx_provider') ?? DEFAULT_PROVIDER) as ProviderId;
+  const _jaxxModel    = localStorage.getItem('jaxx_model') ?? DEFAULT_MODEL_BY_PROVIDER[_jaxxProvider];
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>(_jaxxProvider);
+  const [selectedModel, setSelectedModel]       = useState(_jaxxModel);
   const [showSettings, setShowSettings]         = useState(false);
   const [connectTarget, setConnectTarget]       = useState<ProviderId | null>(null);
   const [connectedMap, setConnectedMap]         = useState<Record<ProviderId, boolean>>({

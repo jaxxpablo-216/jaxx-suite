@@ -3,7 +3,10 @@ import { SYSTEM_INSTRUCTION } from './geminiService';
 
 // ── Stored keys (localStorage per provider) ─────────────────────────────────
 
-const STORAGE_KEY = (p: ProviderId) => `proctor_key_${p}`;
+// Use jaxx_key_* so keys set on the landing page carry over automatically.
+// Falls back to the legacy proctor_key_* prefix for existing users.
+const STORAGE_KEY = (p: ProviderId) => `jaxx_key_${p}`;
+const LEGACY_KEY  = (p: ProviderId) => `proctor_key_${p}`;
 
 export function saveKey(provider: ProviderId, key: string) {
   if (key) localStorage.setItem(STORAGE_KEY(provider), key);
@@ -11,7 +14,9 @@ export function saveKey(provider: ProviderId, key: string) {
 }
 
 export function loadKey(provider: ProviderId): string {
-  return localStorage.getItem(STORAGE_KEY(provider)) ?? '';
+  return localStorage.getItem(STORAGE_KEY(provider))
+    ?? localStorage.getItem(LEGACY_KEY(provider))
+    ?? '';
 }
 
 export function isConnected(provider: ProviderId): boolean {
