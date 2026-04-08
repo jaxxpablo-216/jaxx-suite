@@ -37,14 +37,14 @@ export function canGenerateWithoutKey(provider: ProviderId): boolean {
 
 // ── Error helpers ────────────────────────────────────────────────────────────
 
-function isQuota(s: string) {
-  return s.includes('429') || s.includes('RESOURCE_EXHAUSTED') || s.includes('quota');
-}
-
 function friendlyError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
-  if (isQuota(raw))
-    return 'Quota exceeded — wait a moment then retry, or switch to a different model.';
+  // Billing / no credits (OpenAI: insufficient_quota)
+  if (raw.includes('insufficient_quota') || raw.includes('exceeded your current quota'))
+    return 'OpenAI billing quota exceeded — add credits at platform.openai.com/settings/billing.';
+  // Rate limit / Gemini RESOURCE_EXHAUSTED
+  if (raw.includes('429') || raw.includes('RESOURCE_EXHAUSTED') || raw.includes('rate_limit'))
+    return 'Rate limit hit — wait a moment then retry, or switch to a different model.';
   if (raw.includes('401') || raw.includes('403') || raw.includes('API_KEY_INVALID') ||
       raw.includes('invalid x-api-key') || raw.includes('Unauthorized') ||
       raw.includes('Permission denied') || raw.includes('authentication'))
