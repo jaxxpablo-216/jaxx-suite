@@ -19,6 +19,14 @@ export function isConnected(provider: ProviderId): boolean {
   return loadKey(provider).length > 0;
 }
 
+/** True when a built-in (env-level) key is available for this provider. */
+export function hasSharedKey(provider: ProviderId): boolean {
+  if (provider === 'gemini') {
+    return Boolean(process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY_2);
+  }
+  return false;
+}
+
 // ── Quota / error helpers ────────────────────────────────────────────────────
 
 function isQuota(err: unknown) {

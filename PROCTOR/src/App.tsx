@@ -7,8 +7,7 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
-import { generateOutline } from './services/aiService';
-import { saveKey, loadKey, isConnected } from './services/aiService';
+import { generateOutline, saveKey, loadKey, isConnected, hasSharedKey } from './services/aiService';
 import {
   PROVIDERS, DEFAULT_PROVIDER, DEFAULT_MODEL_BY_PROVIDER,
   type ProviderId, type ProviderDef, type ModelDef,
@@ -314,10 +313,11 @@ export default function App() {
     gemini: false, claude: false, openai: false,
   });
 
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [outline, setOutline]           = useState<string | null>(null);
-  const [error, setError]               = useState<string | null>(null);
-  const [copied, setCopied]             = useState(false);
+  const [isGenerating, setIsGenerating]         = useState(false);
+  const [outline, setOutline]                   = useState<string | null>(null);
+  const [error, setError]                       = useState<string | null>(null);
+  const [copied, setCopied]                     = useState(false);
+  const [sharedKeyDismissed, setSharedKeyDismissed] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const outputRef    = useRef<HTMLDivElement>(null);
@@ -448,9 +448,10 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
-  const activeProvider = PROVIDERS.find(p => p.id === selectedProvider)!;
-  const activeModel    = activeProvider.models.find(m => m.id === selectedModel);
-  const canGenerate    = primaryContent.trim().length > 0 && selectedAudiences.length > 0;
+  const activeProvider   = PROVIDERS.find(p => p.id === selectedProvider)!;
+  const activeModel      = activeProvider.models.find(m => m.id === selectedModel);
+  const canGenerate      = primaryContent.trim().length > 0 && selectedAudiences.length > 0;
+  const showSharedBanner = !connectedMap[selectedProvider] && hasSharedKey(selectedProvider) && !sharedKeyDismissed;
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
@@ -530,6 +531,39 @@ export default function App() {
             onSave={() => handleConnectionSaved(connectTarget)}
             onClose={() => setConnectTarget(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* ── Shared-key notice ── */}
+      <AnimatePresence>
+        {showSharedBanner && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="bg-blue-950/60 border-b border-blue-800/50"
+          >
+            <div className="max-w-7xl mx-auto px-6 py-2.5 flex items-center gap-3 flex-wrap">
+              <span className="text-blue-300 text-[11px]">✦</span>
+              <p className="text-[11px] text-blue-200 flex-1 leading-relaxed">
+                Running on PROCTOR's shared Gemini key — may hit rate limits under heavy use.
+                <button
+                  onClick={() => setConnectTarget('gemini')}
+                  className="ml-1.5 underline underline-offset-2 text-blue-300 hover:text-white transition-colors"
+                >
+                  Use your own free key
+                </button>{' '}
+                for private, unlimited access.
+              </p>
+              <button
+                onClick={() => setSharedKeyDismissed(true)}
+                className="text-blue-500 hover:text-blue-300 transition-colors shrink-0"
+                aria-label="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
