@@ -48,28 +48,6 @@ export const PROVIDERS: ProviderDef[] = [
         speed: 'Thorough',
         badge: 'Best Quality',
       },
-      {
-        id: 'gemini-2.0-flash-lite',
-        label: 'Gemini 2.0 Flash Lite',
-        description: 'Lightweight and fast. Good for quick outlines with short content.',
-        contextWindow: '1M tokens',
-        speed: 'Fast',
-      },
-      {
-        id: 'gemini-1.5-flash',
-        label: 'Gemini 1.5 Flash',
-        description: 'Stable generation model. Reliable choice if newer models hit quota limits.',
-        contextWindow: '1M tokens',
-        speed: 'Fast',
-        badge: 'Stable',
-      },
-      {
-        id: 'gemini-1.5-pro',
-        label: 'Gemini 1.5 Pro',
-        description: 'High quality outputs with long document support. Good for dense reports.',
-        contextWindow: '2M tokens',
-        speed: 'Balanced',
-      },
     ],
   },
   {

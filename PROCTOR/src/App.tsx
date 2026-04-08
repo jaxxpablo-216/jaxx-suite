@@ -3,7 +3,7 @@ import {
   Layers, Upload, FileText, X, Send, Loader2, Copy, Check,
   Download, AlertCircle, ChevronRight, Users, Settings2,
   ArrowLeft, Plus, ExternalLink, CheckCircle2,
-  ChevronDown,
+  ChevronDown, Trash2,
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
@@ -397,6 +397,7 @@ export default function App() {
   const [outline, setOutline]                   = useState<string | null>(null);
   const [error, setError]                       = useState<string | null>(null);
   const [copied, setCopied]                     = useState(false);
+  const [flushed, setFlushed]                   = useState(false);
   const [sharedKeyDismissed, setSharedKeyDismissed] = useState(false);
 
   // Google Sign-In — token lives in React state only, never persisted
@@ -534,6 +535,18 @@ export default function App() {
     }
   };
 
+  const handleFlushMemory = () => {
+    setPrimaryContent('');
+    setExecutiveContext('');
+    setSelectedAudiences([]);
+    setPresentationType(PRESENTATION_TYPES[0].id);
+    setUploadedFiles([]);
+    setOutline(null);
+    setError(null);
+    setFlushed(true);
+    setTimeout(() => setFlushed(false), 2000);
+  };
+
   const copyToClipboard = () => {
     if (!outline) return;
     navigator.clipboard.writeText(outline);
@@ -590,6 +603,20 @@ export default function App() {
               <span className="text-sm">{activeProvider.logo}</span>
               <span className="hidden sm:inline">{activeModel?.label ?? activeProvider.label}</span>
               <ChevronDown className={cn('w-3.5 h-3.5 transition-transform', showSettings && 'rotate-180')} />
+            </button>
+            <div className="w-px h-4 bg-slate-700" />
+            <button
+              onClick={handleFlushMemory}
+              className={cn(
+                'flex items-center gap-1.5 text-xs font-medium transition-colors',
+                flushed
+                  ? 'text-emerald-400'
+                  : 'text-slate-400 hover:text-red-400'
+              )}
+              title="Clear all inputs and output"
+            >
+              {flushed ? <Check className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+              <span className="hidden sm:inline">{flushed ? 'Cleared' : 'Flush'}</span>
             </button>
             {outline && (
               <>
