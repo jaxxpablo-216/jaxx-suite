@@ -62,7 +62,7 @@ function friendlyError(err: unknown): string {
 // that are only available in the stable v1 endpoint. We call v1 directly so
 // we own the exact URL and avoid any SDK-level routing surprises.
 
-const GEMINI_V1 = 'https://generativelanguage.googleapis.com/v1/models';
+const GEMINI_V1 = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 const GEMINI_BODY = (prompt: string) => JSON.stringify({
   system_instruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
