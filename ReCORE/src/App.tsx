@@ -99,8 +99,8 @@ const CUSTOMER_TIERS = [
 ];
 
 const MODELS = [
-  { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', provider: 'google', description: 'Most capable model for complex reasoning and auditing.' },
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'google', description: 'Fast and efficient for quick audits.' },
+  { id: 'gemini-2.5-pro-preview-05-06', name: 'Gemini 2.5 Pro', provider: 'google', description: 'Most capable model for complex reasoning and auditing.' },
+  { id: 'gemini-2.5-flash-preview-04-17', name: 'Gemini 2.5 Flash', provider: 'google', description: 'Fast and efficient for quick audits.' },
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', description: 'OpenAI\'s flagship multimodal model.' },
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'anthropic', description: 'Anthropic\'s high-performance model.' },
   { id: 'copilot', name: 'Microsoft Copilot', provider: 'microsoft', description: 'AI-powered productivity tool for Microsoft 365.' },

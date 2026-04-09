@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Send,
   FileText,
@@ -11,8 +11,15 @@ import {
   AlertCircle,
   History,
   Plus,
-  ArrowLeft
+  ArrowLeft,
+  ShieldCheck,
+  Clock as ClockIcon,
+  Users,
+  MessageCircle,
+  Repeat2,
+  Wrench
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { motion, AnimatePresence } from 'motion/react';
 import { generateRolloutPlan } from './services/gemini';
@@ -24,6 +31,71 @@ interface PlanHistory {
   input: string;
   output: string;
 }
+
+interface ArtifactDefinition {
+  id: string;
+  label: string;
+  keywords: string[];
+  description: string;
+  icon: LucideIcon;
+}
+
+interface PlanArtifact extends ArtifactDefinition {
+  status: 'complete' | 'missing';
+  snippet: string;
+}
+
+interface TimelineInsight {
+  id: string;
+  phase: string;
+  details: string;
+}
+
+interface PlanInsights {
+  artifacts: PlanArtifact[];
+  timeline: TimelineInsight[];
+  feedback: string[];
+}
+
+const ARTIFACT_DEFINITIONS: ArtifactDefinition[] = [
+  {
+    id: 'cascade',
+    label: 'Communication Cascade',
+    keywords: ['communication cascade', 'cascade strategy', 'level 1', 'level 2', 'communication flow'],
+    description:
+      'Level-by-level messaging guide to keep executives, managers, and frontline associates aligned.',
+    icon: Repeat2
+  },
+  {
+    id: 'toolkit',
+    label: 'Manager Toolkit',
+    keywords: ['manager toolkit', 'talking points', 'conversation guidance', 'faq', "do's and don'ts"],
+    description:
+      'Tools, talking points, and guidance that enable managers to lead tough conversations confidently.',
+    icon: Wrench
+  },
+  {
+    id: 'risk',
+    label: 'Risk Mitigation Plan',
+    keywords: ['risk mitigation', 'contingency', 'prevent misinformation', 'risk response'],
+    description: 'Steps to prevent, detect, and respond to rollout risks so disruption stays contained.',
+    icon: ShieldCheck
+  },
+  {
+    id: 'timeline',
+    label: 'Rollout Timeline',
+    keywords: ['implementation timeline', 'phase', 'timeline'],
+    description: 'Structured phase plan from executive alignment through frontline support.',
+    icon: ClockIcon
+  },
+  {
+    id: 'feedback',
+    label: 'Frontline Feedback Loop',
+    keywords: ['frontline feedback', 'reporting cadence', 'closed-loop', 'feedback system'],
+    description: 'Guidance for collecting, escalating, and acting on frontline sentiment.',
+    icon: MessageCircle
+  }
+];
 
 export default function App() {
   const [input, setInput] = useState('');
@@ -41,6 +113,31 @@ export default function App() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const stored = localStorage.getItem('bridge_history');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as PlanHistory[];
+        if (parsed.length) {
+          setHistory(parsed);
+        }
+      } catch (err) {
+        console.error('Failed to parse stored history', err);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('bridge_history', JSON.stringify(history));
+  }, [history]);
+
+  const planInsights = useMemo<PlanInsights | null>(() => {
+    if (!currentPlan) return null;
+    return analyzePlan(currentPlan);
+  }, [currentPlan]);
 
   const handleGenerate = async () => {
     if (!input.trim() || isGenerating) return;
@@ -238,6 +335,106 @@ export default function App() {
                     </div>
                   </div>
 
+              {planInsights && (
+                <section className="space-y-8">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 opacity-60" />
+                    <div>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#141414]/60">
+                        03 / Leadership Intelligence Mesh
+                      </p>
+                      <p className="text-lg font-serif italic">Readiness Snapshot</p>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {planInsights.artifacts.map((artifact) => (
+                      <article
+                        key={artifact.id}
+                        className="h-full rounded-2xl border border-[#141414]/10 bg-white/60 p-4 shadow-[0_12px_30px_rgba(20,20,20,0.08)]"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <artifact.icon className="w-5 h-5 text-[#141414]/80" />
+                            <div>
+                              <p className="text-sm font-semibold">{artifact.label}</p>
+                              <p className="text-[10px] font-mono uppercase tracking-[0.3em] text-[#141414]/50">
+                                {artifact.status === 'complete' ? 'Detected' : 'Needs more detail'}
+                              </p>
+                            </div>
+                          </div>
+                          <span
+                            className={cn(
+                              'text-[10px] font-mono uppercase tracking-[0.2em]',
+                              artifact.status === 'complete' ? 'text-emerald-600' : 'text-amber-600'
+                            )}
+                          >
+                            {artifact.status === 'complete' ? 'Ready' : 'Prompt'}
+                          </span>
+                        </div>
+                        <p className="mt-3 text-sm leading-relaxed text-[#141414]/80">
+                          {artifact.snippet || artifact.description}
+                        </p>
+                      </article>
+                    ))}
+                  </div>
+
+                  {planInsights.timeline.length > 0 && (
+                    <section className="space-y-4">
+                      <div className="flex items-center gap-2 text-[#141414]/60">
+                        <ClockIcon className="w-4 h-4" />
+                        <p className="text-[11px] font-mono uppercase tracking-[0.3em]">
+                          Rollout Timeline Preview
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                        {planInsights.timeline.map((item) => (
+                          <div
+                            key={item.id}
+                            className="rounded-2xl border border-[#141414]/10 bg-[#E4E3E0]/50 p-4"
+                          >
+                            <div className="flex items-center justify-between">
+                              <p className="text-[11px] font-mono uppercase tracking-[0.3em] text-[#141414]/60">
+                                Phase {item.phase}
+                              </p>
+                              <ChevronRight className="w-4 h-4 opacity-30" />
+                            </div>
+                            <p className="mt-2 text-sm text-[#141414]/80">{item.details}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  <section className="space-y-3">
+                    <div className="flex items-center gap-2 text-[#141414]/60">
+                      <MessageCircle className="w-4 h-4" />
+                      <div>
+                        <p className="text-[11px] font-mono uppercase tracking-[0.3em] text-[#141414]/60">
+                          Frontline Feedback Signals
+                        </p>
+                        <p className="text-xs text-[#141414]/70">
+                          Highlighted cues on intake channels & closing the loop.
+                        </p>
+                      </div>
+                    </div>
+                    {planInsights.feedback.length > 0 ? (
+                      <div className="space-y-2">
+                        {planInsights.feedback.map((line, index) => (
+                          <p key={index} className="text-sm text-[#141414]/80">
+                            • {line}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-[#141414]/70">
+                        Encourage the AI to formalize the frontline feedback & reporting system.
+                      </p>
+                    )}
+                  </section>
+                </section>
+              )}
+
                   <div className="prose prose-neutral max-w-none 
                     prose-headings:font-serif prose-headings:italic prose-headings:font-normal prose-headings:border-b prose-headings:border-[#141414]/10 prose-headings:pb-2 prose-headings:mt-12
                     prose-p:text-lg prose-p:leading-relaxed prose-p:text-[#141414]/80
@@ -286,4 +483,97 @@ export default function App() {
       </footer>
     </div>
   );
+}
+
+function analyzePlan(text: string): PlanInsights {
+  const artifacts: PlanArtifact[] = ARTIFACT_DEFINITIONS.map(def => {
+    const snippet = extractSnippet(text, def.keywords);
+    return {
+      ...def,
+      status: snippet ? 'complete' : 'missing',
+      snippet: snippet || def.description
+    };
+  });
+
+  const timeline = parseTimeline(text);
+  const feedback = gatherFeedbackHighlights(text);
+
+  return { artifacts, timeline, feedback };
+}
+
+function extractSnippet(text: string, keywords: string[]) {
+  const lowerText = text.toLowerCase();
+  for (const keyword of keywords) {
+    const lowerKeyword = keyword.toLowerCase();
+    const index = lowerText.indexOf(lowerKeyword);
+    if (index >= 0) {
+      const start = Math.max(0, index - 60);
+      const end = Math.min(text.length, index + lowerKeyword.length + 140);
+      return text.slice(start, end).replace(/\s+/g, ' ').trim();
+    }
+  }
+  return '';
+}
+
+function parseTimeline(text: string): TimelineInsight[] {
+  const matches = Array.from(text.matchAll(/Phase\s*(\d+)[\s:\-–]+([^\n]+)/gi));
+  if (matches.length === 0) {
+    return parseImplementationTimeline(text);
+  }
+
+  return matches.map((match, index) => {
+    const start = match.index ?? 0;
+    const rest = text.slice(start);
+    const nextBreak = rest.search(/\n{2,}/);
+    const block = nextBreak === -1 ? rest : rest.slice(0, nextBreak);
+    const detail = block.replace(/Phase\s*\d+[:\-\s]*/i, '').trim().replace(/\s+/g, ' ');
+
+    return {
+      id: `${index}-${match[1] ?? index}`,
+      phase: match[1] ?? `${index + 1}`,
+      details: detail || match[0].trim()
+    };
+  });
+}
+
+function parseImplementationTimeline(text: string): TimelineInsight[] {
+  const startIdx = text.search(/Implementation Timeline/i);
+  if (startIdx === -1) return [];
+  const remainder = text.slice(startIdx);
+  const nextBreak = remainder.search(/\n{2,}/);
+  const section = nextBreak === -1 ? remainder : remainder.slice(0, nextBreak);
+
+  return section
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean)
+    .filter(line => /^Phase\s*\d+/i.test(line))
+    .map((line, index) => {
+      const phaseMatch = line.match(/Phase\s*(\d+)/i);
+      return {
+        id: `fallback-${index}`,
+        phase: phaseMatch?.[1] ?? `${index + 1}`,
+        details: line.replace(/Phase\s*\d+[:\-\s]*/i, '').trim() || line
+      };
+    });
+}
+
+function gatherFeedbackHighlights(text: string): string[] {
+  const sentences = text.split(/(?<=[.!?])\s+/);
+  const filtered = sentences.filter(sentence =>
+    /frontline|feedback|reporting|closed-loop|intake|inbox/i.test(sentence)
+  );
+
+  if (filtered.length) {
+    return Array.from(new Set(filtered.map(sentence => sentence.replace(/\s+/g, ' ').trim()))).slice(0, 3);
+  }
+
+  const lines = text
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => /frontline feedback|reporting cadence|feedback system|closed-loop/i.test(line))
+    .slice(0, 3)
+    .map(line => line.replace(/\s+/g, ' ').replace(/^\W+/, '').trim());
+
+  return lines;
 }

@@ -127,9 +127,9 @@ export async function auditCommunication(inputs: {
   provider?: string;
   apiKey?: string;
 }) {
-  const modelName = inputs.model || "gemini-3.1-pro-preview";
+  const modelName = inputs.model || "gemini-2.5-flash-preview-04-17";
   const provider = inputs.provider || "google";
-  
+
   // Use the provided API key, or the platform-injected API_KEY, or the developer's GEMINI_API_KEY
   const apiKey = inputs.apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
 
@@ -212,13 +212,13 @@ export async function rewordSuggestion(inputs: {
   provider?: string;
   apiKey?: string;
 }) {
-  const modelName = inputs.model || "gemini-3.1-pro-preview";
+  const modelName = inputs.model || "gemini-2.5-flash-preview-04-17";
   const provider = inputs.provider || "google";
   const apiKey = inputs.apiKey || process.env.API_KEY || process.env.GEMINI_API_KEY;
 
   if (provider === "google") {
     const ai = new GoogleGenAI({ apiKey });
-    
+
     const prompt = `
 You are the CORE Reviewer. The user has selected one of your previously suggested actions to be reworded for better clarity or impact.
 
