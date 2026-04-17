@@ -61,6 +61,13 @@ function friendlyError(err: unknown): string {
   return `Generation failed: ${raw.slice(0, 200)}`;
 }
 
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Returns true when an error message indicates an API quota/rate-limit hit. */
+function isQuota(msg: string): boolean {
+  return /429|RESOURCE_EXHAUSTED|quota|rate.?limit/i.test(msg);
+}
+
 // ── Gemini — direct REST v1 (bypasses SDK's v1beta default) ─────────────────
 //
 // The @google/genai SDK routes to v1beta by default, which rejects model IDs
