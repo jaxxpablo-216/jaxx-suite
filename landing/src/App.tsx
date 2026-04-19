@@ -14,6 +14,9 @@ import {
 import {
   saveKey, loadKey, isConnected, saveSelection, loadSelection, hasSharedGeminiKey,
 } from './services/aiStore';
+import { LoginScreen } from './components/LoginScreen';
+import { AdminPortal } from './components/AdminPortal';
+import { Employee, getSession, clearSession } from './services/auth';
 
 function cn(...inputs: Parameters<typeof clsx>) {
   return twMerge(clsx(...inputs));
@@ -499,6 +502,18 @@ export default function App() {
   const [setupOpen,     setSetupOpen]     = useState(false);
   const [saved2,        setSaved2]        = useState(false);
 
+  const [activeUser, setActiveUser] = useState<Employee | null>(null);
+  const [activeTab, setActiveTab] = useState<'tools' | 'admin'>('tools');
+
+  useEffect(() => {
+    setActiveUser(getSession());
+  }, []);
+
+  const handleLogout = () => {
+    clearSession();
+    setActiveUser(null);
+  };
+
   useEffect(() => {
     setConnectedMap({
       gemini: isConnected('gemini'),
@@ -526,6 +541,10 @@ export default function App() {
   const activeModel    = activeProvider.models.find(m => m.id === selectedModel);
   const anyConnected   = Object.values(connectedMap).some(Boolean) || hasSharedGeminiKey();
 
+  if (!activeUser) {
+    return <LoginScreen onLogin={emp => { setActiveUser(emp); handleConnectionSaved('gemini'); }} />;
+  }
+
   return (
     <div className="min-h-screen bg-neutral-950 text-neutral-100 flex flex-col">
 
@@ -542,6 +561,23 @@ export default function App() {
                 Enterprise AI Tools
               </span>
             </div>
+            
+            {activeUser.role === 'Superadmin' && (
+              <div className="ml-6 flex items-center gap-2 bg-neutral-900 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('tools')}
+                  className={cn("px-3 py-1.5 text-xs font-semibold rounded-md transition-colors", activeTab === 'tools' ? "bg-neutral-800 text-white" : "text-neutral-500 hover:text-neutral-300")}
+                >
+                  Suite
+                </button>
+                <button
+                  onClick={() => setActiveTab('admin')}
+                  className={cn("px-3 py-1.5 text-xs font-semibold rounded-md transition-colors", activeTab === 'admin' ? "bg-neutral-800 text-white" : "text-neutral-500 hover:text-neutral-300")}
+                >
+                  Admin Portal
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-3">
             {/* Connection status pill */}
@@ -558,6 +594,13 @@ export default function App() {
               <Key className="w-3.5 h-3.5" />
               AI Setup
               <ChevronDown className={cn('w-3 h-3 transition-transform', setupOpen && 'rotate-180')} />
+            </button>
+            <div className="w-px h-4 bg-neutral-800" />
+            <button
+              onClick={handleLogout}
+              className="text-xs font-medium text-neutral-500 hover:text-red-400 transition-colors"
+            >
+              Sign out
             </button>
           </div>
         </div>
@@ -604,118 +647,126 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Hero */}
-      <section className="border-b border-neutral-800 px-6 py-16">
-        <div className="max-w-6xl mx-auto">
-          <p className="text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mb-4">
-            AI-Powered Communication Suite
-          </p>
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight mb-4">
-            Communicate with<br />
-            <span className="text-neutral-400">clarity, compliance, and confidence.</span>
-          </h1>
-          <p className="text-neutral-400 text-lg max-w-2xl leading-relaxed mb-6">
-            Three specialized AI engines built for enterprise communication. Connect your AI provider
-            once — your key and model preference carry into every tool automatically.
-          </p>
-          {/* Setup CTA if nothing connected */}
-          {!anyConnected && (
-            <button
-              onClick={() => setSetupOpen(true)}
-              className="flex items-center gap-2 text-sm font-semibold text-blue-400 border border-blue-500/40 hover:bg-blue-500/10 px-4 py-2 rounded-lg transition-all"
-            >
-              <Key className="w-4 h-4" />
-              Connect AI Provider to get started
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          )}
-          {anyConnected && (
-            <div className="flex items-center gap-2 text-xs text-emerald-400 font-mono">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              {activeProvider.logo} {activeProvider.label} · {activeModel?.label} — ready across all tools
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* App Cards */}
-      <main className="flex-1 px-6 py-12">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <p className="text-xs font-mono uppercase tracking-widest text-neutral-500">Tools</p>
-            {anyConnected && (
-              <p className="text-[10px] font-mono text-neutral-600">
-                Using {activeProvider.logo} {activeProvider.label} · {activeModel?.label}
+      {activeTab === 'admin' ? (
+        <main className="flex-1">
+          <AdminPortal />
+        </main>
+      ) : (
+        <>
+          {/* Hero */}
+          <section className="border-b border-neutral-800 px-6 py-16">
+            <div className="max-w-6xl mx-auto">
+              <p className="text-xs font-mono uppercase tracking-[0.25em] text-neutral-500 mb-4">
+                AI-Powered Communication Suite
               </p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {APPS.map((app) => {
-              const colors = accentMap[app.accent];
-              const Icon = app.icon;
-              const toolReady = anyConnected;
-              return (
-                <div
-                  key={app.id}
-                  className={cn(
-                    'relative flex flex-col border rounded-xl p-6 transition-all duration-300 bg-neutral-900/60',
-                    colors.border
-                  )}
+              <h1 className="text-4xl md:text-5xl font-bold tracking-tight leading-tight mb-4">
+                Communicate with<br />
+                <span className="text-neutral-400">clarity, compliance, and confidence.</span>
+              </h1>
+              <p className="text-neutral-400 text-lg max-w-2xl leading-relaxed mb-6">
+                Three specialized AI engines built for enterprise communication. Connect your AI provider
+                once — your key and model preference carry into every tool automatically.
+              </p>
+              {/* Setup CTA if nothing connected */}
+              {!anyConnected && (
+                <button
+                  onClick={() => setSetupOpen(true)}
+                  className="flex items-center gap-2 text-sm font-semibold text-blue-400 border border-blue-500/40 hover:bg-blue-500/10 px-4 py-2 rounded-lg transition-all"
                 >
-                  {/* Badge */}
-                  <div className="flex items-center justify-between mb-5">
-                    <span className={cn('text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border', colors.badge)}>
-                      {app.tag}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {toolReady && (
-                        <div className="flex items-center gap-1 text-[9px] font-mono text-emerald-500">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                          Ready
-                        </div>
-                      )}
-                      <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', colors.icon)}>
-                        <Icon className="w-5 h-5" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <h2 className="text-2xl font-bold tracking-tight mb-1">{app.name}</h2>
-                  <p className={cn('text-[10px] font-mono uppercase tracking-wider mb-4', colors.text)}>
-                    {app.fullName}
-                  </p>
-                  <p className="text-sm text-neutral-400 leading-relaxed flex-1 mb-5">
-                    {app.description}
-                  </p>
-
-                  <div className="flex flex-wrap gap-1.5 mb-6">
-                    {app.features.map((f) => (
-                      <span key={f} className="text-[10px] font-mono text-neutral-500 bg-neutral-800 px-2 py-0.5 rounded">
-                        {f}
-                      </span>
-                    ))}
-                  </div>
-
-                  <a
-                    href={app.href}
-                    className={cn(
-                      'flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm transition-all active:scale-95',
-                      colors.btn
-                    )}
-                  >
-                    Launch {app.name}
-                    <ArrowRight className="w-4 h-4" />
-                  </a>
+                  <Key className="w-4 h-4" />
+                  Connect AI Provider to get started
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
+              {anyConnected && (
+                <div className="flex items-center gap-2 text-xs text-emerald-400 font-mono">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {activeProvider.logo} {activeProvider.label} · {activeModel?.label} — ready across all tools
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      </main>
+              )}
+            </div>
+          </section>
 
-      {/* Help & Guide */}
-      <HelpGuide />
+          {/* App Cards */}
+          <main className="flex-1 px-6 py-12">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <p className="text-xs font-mono uppercase tracking-widest text-neutral-500">Tools</p>
+                {anyConnected && (
+                  <p className="text-[10px] font-mono text-neutral-600">
+                    Using {activeProvider.logo} {activeProvider.label} · {activeModel?.label}
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {APPS.map((app) => {
+                  const colors = accentMap[app.accent];
+                  const Icon = app.icon;
+                  const toolReady = anyConnected;
+                  return (
+                    <div
+                      key={app.id}
+                      className={cn(
+                        'relative flex flex-col border rounded-xl p-6 transition-all duration-300 bg-neutral-900/60',
+                        colors.border
+                      )}
+                    >
+                      {/* Badge */}
+                      <div className="flex items-center justify-between mb-5">
+                        <span className={cn('text-[10px] font-mono uppercase tracking-widest px-2.5 py-1 rounded border', colors.badge)}>
+                          {app.tag}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {toolReady && (
+                            <div className="flex items-center gap-1 text-[9px] font-mono text-emerald-500">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                              Ready
+                            </div>
+                          )}
+                          <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center', colors.icon)}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <h2 className="text-2xl font-bold tracking-tight mb-1">{app.name}</h2>
+                      <p className={cn('text-[10px] font-mono uppercase tracking-wider mb-4', colors.text)}>
+                        {app.fullName}
+                      </p>
+                      <p className="text-sm text-neutral-400 leading-relaxed flex-1 mb-5">
+                        {app.description}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 mb-6">
+                        {app.features.map((f) => (
+                          <span key={f} className="text-[10px] font-mono text-neutral-500 bg-neutral-800 px-2 py-0.5 rounded">
+                            {f}
+                          </span>
+                        ))}
+                      </div>
+
+                      <a
+                        href={app.href}
+                        className={cn(
+                          'flex items-center justify-center gap-2 w-full py-3 rounded-lg font-semibold text-sm transition-all active:scale-95',
+                          colors.btn
+                        )}
+                      >
+                        Launch {app.name}
+                        <ArrowRight className="w-4 h-4" />
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </main>
+
+          {/* Help & Guide */}
+          <HelpGuide />
+        </>
+      )}
 
       {/* Privacy banner */}
       <div className="border-t border-neutral-800 px-6 py-3 bg-neutral-900/30">
