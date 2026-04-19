@@ -502,12 +502,8 @@ export default function App() {
   const [setupOpen,     setSetupOpen]     = useState(false);
   const [saved2,        setSaved2]        = useState(false);
 
-  const [activeUser, setActiveUser] = useState<Employee | null>(null);
+  const [activeUser, setActiveUser] = useState<Employee | null>(getSession);
   const [activeTab, setActiveTab] = useState<'tools' | 'admin'>('tools');
-
-  useEffect(() => {
-    setActiveUser(getSession());
-  }, []);
 
   const handleLogout = () => {
     clearSession();
