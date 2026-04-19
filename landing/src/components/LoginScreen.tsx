@@ -1,19 +1,14 @@
-// landing/src/components/LoginScreen.tsx
 import React, { useState } from 'react';
 import { ShieldCheck, Lock, ArrowRight, Loader2, Key } from 'lucide-react';
 import { motion } from 'motion/react';
-import { authenticate, saveSession, seedSuperadmin } from '../services/auth';
+import { authenticate, saveSession } from '../services/auth';
 import type { Employee } from '../services/auth';
-import { cn } from '../utils/cn'; // I will create this utility if not exist, or inline twMerge/clsx
 
 export function LoginScreen({ onLogin }: { onLogin: (emp: Employee) => void }) {
   const [employeeId, setEmployeeId] = useState('');
   const [token, setToken] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // Developer seeding logic for 2025-998
-  const [seedMsg, setSeedMsg] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -122,20 +117,6 @@ export function LoginScreen({ onLogin }: { onLogin: (emp: Employee) => void }) {
             </button>
           </form>
 
-          {/* Dev Seed Button (to fulfill the user's immediate request without CLI access) */}
-          <div className="mt-8 pt-6 border-t border-neutral-800/50 text-center">
-            <button
-              onClick={handleSeed}
-              className="text-xs text-neutral-500 hover:text-white transition-colors underline decoration-neutral-700 underline-offset-4"
-            >
-              [Dev] Seed Master Token for 2025-998
-            </button>
-            {seedMsg && (
-              <p className="mt-4 text-[11px] font-mono p-3 bg-neutral-950/50 text-emerald-400 border border-emerald-500/20 rounded-lg break-all">
-                {seedMsg}
-              </p>
-            )}
-          </div>
         </div>
       </motion.div>
     </div>

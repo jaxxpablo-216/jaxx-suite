@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db } from '../services/firebase';
-import { Employee, generateToken } from '../services/auth';
+import { Employee, Role, generateToken } from '../services/auth';
 import { ShieldCheck, UserPlus, Key, Search, Clock, Save, Copy, Check } from 'lucide-react';
 import { formatDistanceToNow, isPast } from 'date-fns';
 
@@ -22,7 +22,7 @@ export function AdminPortal() {
   const [newUserId, setNewUserId] = useState('');
   const [newFirstName, setNewFirstName] = useState('');
   const [newLastName, setNewLastName] = useState('');
-  const [newRole, setNewRole] = useState<'Employee'|'HR Manager'|'Admin'|'Superadmin'>('Employee');
+  const [newRole, setNewRole] = useState<Role>('Employee');
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -217,6 +217,7 @@ export function AdminPortal() {
                 <label className="block text-xs font-medium text-neutral-400 mb-1">Role</label>
                 <select value={newRole} onChange={e => setNewRole(e.target.value as any)} className="w-full bg-neutral-950 border border-neutral-800 rounded-lg px-3 py-2 text-sm text-white">
                   <option value="Employee">Employee</option>
+                  <option value="HR Coordinator">HR Coordinator</option>
                   <option value="HR Manager">HR Manager</option>
                   <option value="Admin">Admin</option>
                   <option value="Superadmin">Superadmin</option>

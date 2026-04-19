@@ -1,4 +1,4 @@
-import { db, employeeCollection } from './firebase';
+import { db } from './firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 export type Role = 'Employee' | 'HR Coordinator' | 'HR Manager' | 'Admin' | 'Superadmin';
@@ -88,8 +88,12 @@ export function saveSession(emp: Employee) {
 export function getSession(): Employee | null {
   const data = localStorage.getItem('jaxx_session_emp');
   if (!data) return null;
-  // TODO: we could double check validity locally
-  return JSON.parse(data) as Employee;
+  const emp = JSON.parse(data) as Employee;
+  if (emp.tokenExpiresAt && new Date(emp.tokenExpiresAt) < new Date()) {
+    localStorage.removeItem('jaxx_session_emp');
+    return null;
+  }
+  return emp;
 }
 
 export function clearSession() {
